@@ -1,6 +1,8 @@
 # Kandinsky 5.0 T2I Lite — CUDA (Windows)
 
-Только **NVIDIA CUDA**. CLI: промпт → PNG.
+Каждый новый `python generate.py -p ...` **заново грузит веса** (~десятки ГБ с диска в VRAM) — это и есть главный тормоз.
+
+**Держи процесс живым:** interactive CLI или FastAPI.
 
 ## Установка
 
@@ -10,45 +12,37 @@ uv venv --python 3.11
 uv pip install -r requirements.txt
 ```
 
-Проверка:
-
-```bat
-python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
-```
-
-Нужно: `2.7.x+cu124` и `True`.
-
-## Модель
-
 ```bat
 huggingface-cli download kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers --local-dir .\models\t2i-lite
 ```
 
-## Запуск (RTX 4070 16GB — быстро)
-
-Разрешения **только** из списка (512 / 768×768 нет):
-
-| size | заметка |
-|------|---------|
-| **640×1408** / **1408×640** | меньше пикселей → быстрее |
-| 768×1280 / 1280×768 | |
-| 896×1152 / 1152×896 | |
-| 1024×1024 | квадрат |
+## Вариант 1 — interactive (веса 1 раз)
 
 ```bat
-python generate.py --model .\models\t2i-lite -p "кот в красной шапке" --width 640 --height 1408 --steps 16
+python generate.py --interactive --width 640 --height 1408 --steps 16
 ```
 
-По умолчанию уже: `640×1408`, `steps=16`, **без** offload и attention-slicing.
+Потом вводишь промпты; `quit` — выход. Загрузка только при старте.
 
-Квадрат:
+## Вариант 2 — FastAPI (веса 1 раз, HTTP)
 
 ```bat
-python generate.py --model .\models\t2i-lite -p "..." --width 1024 --height 1024 --steps 20
+set OFFLOAD=0
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Если OOM:
+```bat
+curl -X POST http://127.0.0.1:8000/generate -H "Content-Type: application/json" -d "{\"prompt\":\"кот в красной шапке\",\"width\":640,\"height\":1408,\"steps\":16}" --output out.png
+```
+
+Второй и следующие запросы — уже без перезагрузки модели. Смотри заголовок `X-Gen-Seconds`.
+
+## Разрешения (только эти)
+
+`640×1408`, `1408×640`, `768×1280`, `1280×768`, `896×1152`, `1152×896`, `1024×1024`
+
+## One-shot CLI (медленно на каждый запуск)
 
 ```bat
-python generate.py ... --offload
+python generate.py -p "кот в красной шапке" --width 640 --height 1408 --steps 16
 ```

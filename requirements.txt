@@ -11,3 +11,6 @@ sentencepiece>=0.2.0
 protobuf>=5.28.0
 pillow>=10.4.0
 huggingface-hub[cli]>=0.26.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.0.0
