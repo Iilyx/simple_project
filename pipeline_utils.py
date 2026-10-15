@@ -1,4 +1,4 @@
-"""Kandinsky 5.0 T2I Lite — как в HF-примере, но с локальными весами."""
+"""Kandinsky 5.0 T2I Lite — HF-стиль, локальные веса, float16 (bf16 даёт mismatch с Qwen)."""
 
 from __future__ import annotations
 
@@ -31,10 +31,9 @@ def default_model_path() -> str:
 
 def load_pipe(model: str | None = None, *, offload: bool = False, attention_slicing: bool = False):
     """
-    Как в карточке модели:
-      pipe = Kandinsky5T2IPipeline.from_pretrained(...)
-      pipe.to(device="cuda", dtype=torch.bfloat16)
-    только model = локальная папка.
+    Как в карточке HF, но:
+      - путь локальный
+      - dtype=float16 (bfloat16 у тебя даёт: mat1 Float / mat2 BFloat16)
     """
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA not available")
@@ -46,12 +45,12 @@ def load_pipe(model: str | None = None, *, offload: bool = False, attention_slic
             f"Local model not found: {path.resolve()} (need model_index.json)"
         )
 
-    # как в примере HF
-    dtype = torch.bfloat16
+    dtype = torch.float16
 
-    _log(f"from_pretrained({path}) …")
+    _log(f"from_pretrained({path}, torch_dtype={dtype}) …")
     pipe = Kandinsky5T2IPipeline.from_pretrained(
         str(path),
+        torch_dtype=dtype,
         local_files_only=True,
     )
     _log(f'to(device="cuda", dtype={dtype}) …')
@@ -63,7 +62,7 @@ def load_pipe(model: str | None = None, *, offload: bool = False, attention_slic
         _log("WARN: offload=True — будет медленно")
         pipe.enable_model_cpu_offload(device="cuda")
 
-    _log(f"READY gpu={torch.cuda.get_device_name(0)}")
+    _log(f"READY gpu={torch.cuda.get_device_name(0)} dtype={dtype}")
     return pipe
 
 

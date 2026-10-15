@@ -3,11 +3,11 @@
 Тот же подход, что в [карточке модели](https://huggingface.co/kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers):
 
 ```python
-pipe = Kandinsky5T2IPipeline.from_pretrained(model_id)
-pipe.to(device="cuda", dtype=torch.bfloat16)
+pipe = Kandinsky5T2IPipeline.from_pretrained(path, torch_dtype=torch.float16, local_files_only=True)
+pipe.to(device="cuda", dtype=torch.float16)
 ```
 
-только `model_id` = папка `models/t2i-lite`.
+`bfloat16` из карточки HF у тебя даёт `mat1 Float / mat2 BFloat16` (Qwen), поэтому **float16**.
 
 ## Установка
 
