@@ -43,8 +43,8 @@ def setup_cuda() -> None:
 
 
 def _pick_dtype() -> torch.dtype:
-    # DTYPE=float16|bfloat16|fp16|bf16 — если bf16 даёт mismatch, поставь float16 в .env
-    raw = os.getenv("DTYPE", "bfloat16").strip().lower()
+    # default float16 — меньше mismatch с Qwen, чем bfloat16
+    raw = os.getenv("DTYPE", "float16").strip().lower()
     if raw in {"float16", "fp16", "half"}:
         return torch.float16
     if raw in {"bfloat16", "bf16"}:
@@ -65,16 +65,24 @@ def _vram() -> str:
 
 
 def _cast_pipe(pipe, device: str, dtype: torch.dtype):
-    """device + dtype вместе — иначе часть модулей остаётся float32."""
+    """Все nn.Module в одном device/dtype — иначе Float × BFloat16 в matmul."""
+    components = getattr(pipe, "components", None)
+    if isinstance(components, dict):
+        for name, mod in components.items():
+            if isinstance(mod, torch.nn.Module):
+                try:
+                    components[name] = mod.to(device=device, dtype=dtype)
+                    _log(f"     cast {name} → {device}/{dtype}")
+                except Exception as exc:  # noqa: BLE001
+                    _log(f"     skip cast {name}: {exc}")
     pipe = pipe.to(device=device, dtype=dtype)
-    # на всякий случай дожимаем nn.Module-компоненты
     for name in ("transformer", "vae", "text_encoder", "text_encoder_2"):
         mod = getattr(pipe, name, None)
-        if mod is not None and hasattr(mod, "to"):
+        if isinstance(mod, torch.nn.Module):
             try:
                 setattr(pipe, name, mod.to(device=device, dtype=dtype))
             except Exception as exc:  # noqa: BLE001
-                _log(f"     skip cast {name}: {exc}")
+                _log(f"     skip cast attr {name}: {exc}")
     return pipe
 
 
