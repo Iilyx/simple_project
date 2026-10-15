@@ -1,8 +1,6 @@
---extra-index-url https://download.pytorch.org/whl/cu124
-
-torch>=2.7.0
-torchvision>=0.22.0
-diffusers>=0.40.0
+torch>=2.5.0
+torchvision>=0.20.0
+diffusers
 transformers>=4.51.0
 accelerate>=1.1.0
 safetensors>=0.4.5
@@ -10,6 +8,3 @@ sentencepiece>=0.2.0
 protobuf>=5.28.0
 pillow>=10.4.0
 huggingface-hub[cli]>=0.26.0
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-pydantic>=2.0.0
