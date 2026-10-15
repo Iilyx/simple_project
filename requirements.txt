@@ -1,6 +1,9 @@
-torch>=2.5.0
-torchvision>=0.20.0
-diffusers
+# Windows + NVIDIA CUDA 12.4 only
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch>=2.7.0
+torchvision>=0.22.0
+diffusers>=0.40.0
 transformers>=4.51.0
 accelerate>=1.1.0
 safetensors>=0.4.5

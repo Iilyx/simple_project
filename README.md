@@ -1,88 +1,54 @@
-# Kandinsky 5.0 Image Lite (local)
+# Kandinsky 5.0 T2I Lite — CUDA (Windows)
 
-Локальная генерация картинок через Diffusers:  
-`kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers`
+Только **NVIDIA CUDA**. CLI: промпт → PNG.
 
-## Требования
+## Установка
 
-- Python **3.11+**
-- [uv](https://docs.astral.sh/uv/)
-- Mac (MPS) / Windows+NVIDIA (CUDA) / CPU
-
-## Установка uv
-
-**macOS / Linux:**
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-**Windows (PowerShell):**
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```bat
+uv venv --python 3.11
+.venv\Scripts\activate
+uv pip install -r requirements.txt
 ```
 
 Проверка:
 
-```bash
-uv --version
+```bat
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
-## Окружение и зависимости
+Нужно: `2.7.x+cu124` и `True`.
 
-```bash
-git clone https://github.com/Iilyx/simple_project.git
-cd simple_project
+## Модель
 
-uv venv --python 3.11
+```bat
+huggingface-cli download kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers --local-dir .\models\t2i-lite
 ```
 
-Активация:
+## Запуск (RTX 4070 16GB — быстро)
 
-```bash
-# macOS / Linux
-source .venv/bin/activate
+Разрешения **только** из списка (512 / 768×768 нет):
 
-# Windows
-.venv\Scripts\activate
+| size | заметка |
+|------|---------|
+| **640×1408** / **1408×640** | меньше пикселей → быстрее |
+| 768×1280 / 1280×768 | |
+| 896×1152 / 1152×896 | |
+| 1024×1024 | квадрат |
+
+```bat
+python generate.py --model .\models\t2i-lite -p "кот в красной шапке" --width 640 --height 1408 --steps 16
 ```
 
-Установка пакетов:
+По умолчанию уже: `640×1408`, `steps=16`, **без** offload и attention-slicing.
 
-```bash
-uv pip install -r requirements.txt
+Квадрат:
+
+```bat
+python generate.py --model .\models\t2i-lite -p "..." --width 1024 --height 1024 --steps 20
 ```
 
-## Скачать модель
+Если OOM:
 
-```bash
-huggingface-cli download kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers \
-  --local-dir ./models/t2i-lite
+```bat
+python generate.py ... --offload
 ```
-
-## Запуск
-
-```bash
-python generate.py --model ./models/t2i-lite -p "кот в красной шапке"
-```
-
-Картинка сохранится в `outputs/`.
-
-### Полезные флаги
-
-```bash
-# Mac ~24 ГБ RAM — меньше разрешение
-python generate.py --model ./models/t2i-lite -p "..." --width 512 --height 512
-
-# Windows + NVIDIA с запасом VRAM
-python generate.py --model ./models/t2i-lite -p "..." --device cuda --width 1024 --height 1024 --no-offload
-```
-
-| Флаг | По умолчанию | Зачем |
-|------|--------------|--------|
-| `--device` | `auto` | `mps` / `cuda` / `cpu` |
-| `--offload` | включён | экономия памяти (на Mac почти всегда нужен) |
-| `--width` / `--height` | `768` | на слабой машине ставь `512` |
-| `--steps` | `50` | качество / скорость |
-| `--seed` | `42` | воспроизводимость |
