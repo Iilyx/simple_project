@@ -99,10 +99,11 @@ def load_pipe(model: str, *, offload: bool = False, attention_slicing: bool = Fa
             _ = pipe(
                 prompt="warmup",
                 negative_prompt="",
-                height=640,
-                width=1408,
+                height=1024,
+                width=1024,
                 num_inference_steps=2,
                 guidance_scale=1.0,
+                num_images_per_prompt=1,
             )
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
@@ -119,8 +120,8 @@ def run_pipe(
     *,
     prompt: str,
     negative_prompt: str = "",
-    width: int = 640,
-    height: int = 1408,
+    width: int = 1024,
+    height: int = 1024,
     steps: int = 16,
     guidance: float = 3.5,
     seed: int = 42,
@@ -128,41 +129,42 @@ def run_pipe(
     if (width, height) not in SUPPORTED_SIZES:
         raise ValueError(f"Unsupported size {width}x{height}. Use {SUPPORTED_SIZES}")
 
-    _log(f"generate start {width}x{height} steps={steps} …")
+    _log(f"generate start {width}x{height} steps={steps} guidance={guidance}")
     generator = torch.Generator(device="cpu").manual_seed(seed)
 
     def _on_step(pipe_, step_index, timestep, callback_kwargs):
-        # step_index с 0; печатаем прогресс
         if step_index == 0 or (step_index + 1) % max(1, steps // 4) == 0 or (
             step_index + 1
         ) == steps:
             _log(f"  step {step_index + 1}/{steps}")
         return callback_kwargs
 
+    kwargs = dict(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        height=height,
+        width=width,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        num_images_per_prompt=1,
+        generator=generator,
+    )
+
     t0 = time.perf_counter()
     with torch.inference_mode():
         try:
-            result = pipe(
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                height=height,
-                width=width,
-                num_inference_steps=steps,
-                guidance_scale=guidance,
-                generator=generator,
-                callback_on_step_end=_on_step,
-            )
+            result = pipe(**kwargs, callback_on_step_end=_on_step)
         except TypeError:
-            # старые diffusers без callback
-            result = pipe(
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                height=height,
-                width=width,
-                num_inference_steps=steps,
-                guidance_scale=guidance,
-                generator=generator,
-            )
+            result = pipe(**kwargs)
     torch.cuda.synchronize()
-    _log(f"generate done in {time.perf_counter() - t0:.1f}s")
-    return result.image[0]
+    images = result.image
+    if not isinstance(images, (list, tuple)):
+        images = [images]
+    if len(images) != 1:
+        _log(f"WARN: pipeline returned n_images={len(images)}, using first only")
+    img = images[0]
+    _log(
+        f"generate done in {time.perf_counter() - t0:.1f}s  "
+        f"n_images={len(images)} size={img.size[0]}x{img.size[1]}"
+    )
+    return img

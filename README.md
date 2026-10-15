@@ -1,10 +1,7 @@
 # Kandinsky 5.0 T2I Lite — CUDA (Windows)
 
-Каждый новый `python generate.py -p ...` **заново грузит веса** (~десятки ГБ с диска в VRAM) — это и есть главный тормоз.
-
-**Держи процесс живым:** interactive CLI или FastAPI.
-
-Настройки жёстко в `.env` (`OFFLOAD=0` и т.д.).
+Каждый новый `python generate.py -p ...` **заново грузит веса** — главный тормоз.  
+Держи процесс живым: `--interactive` или FastAPI. Настройки в `.env`.
 
 ## Установка
 
@@ -18,34 +15,29 @@ uv pip install -r requirements.txt
 huggingface-cli download kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers --local-dir .\models\t2i-lite
 ```
 
-## Вариант 1 — interactive (веса 1 раз)
-
-```bat
-python generate.py --interactive --width 640 --height 1408 --steps 16
-```
-
-Потом вводишь промпты; `quit` — выход. Загрузка только при старте.
-
-## Вариант 2 — FastAPI (веса 1 раз, HTTP)
+## FastAPI (рекомендуется)
 
 ```bat
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Offload берётся из `.env` → `OFFLOAD=0`. При OOM поменяй там на `1`.
-
 ```bat
-curl -X POST http://127.0.0.1:8000/generate -H "Content-Type: application/json" -d "{\"prompt\":\"кот в красной шапке\",\"width\":640,\"height\":1408,\"steps\":16}" --output out.png
+curl -X POST http://127.0.0.1:8000/generate -H "Content-Type: application/json" -d "{\"prompt\":\"кот в красной шапке\"}" --output out.png
 ```
 
-Второй и следующие запросы — уже без перезагрузки модели. Смотри заголовок `X-Gen-Seconds`.
+Дефолт из `.env`: **1024×1024**, `steps=16`, `OFFLOAD=0`.
 
-## Разрешения (только эти)
+Картинка также сохраняется в `outputs/k5_reqN_..._WxH.png`.  
+В логе смотри `[req #N]` — если за один клик три `#1 #2 #3`, клиент шлёт три запроса.
 
-`640×1408`, `1408×640`, `768×1280`, `1280×768`, `896×1152`, `1152×896`, `1024×1024`
+`640×1408` — очень высокий кадр; модель часто рисует «комикс» из нескольких сцен в **одном** PNG. Для одной сцены используй `1024×1024`.
 
-## One-shot CLI (медленно на каждый запуск)
+## Interactive CLI
 
 ```bat
-python generate.py -p "кот в красной шапке" --width 640 --height 1408 --steps 16
+python generate.py --interactive
 ```
+
+## Разрешения
+
+`1024×1024`, `640×1408`, `1408×640`, `768×1280`, `1280×768`, `896×1152`, `1152×896`
