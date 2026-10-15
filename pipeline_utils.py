@@ -42,6 +42,19 @@ def setup_cuda() -> None:
     torch.set_float32_matmul_precision("high")
 
 
+def _pick_dtype() -> torch.dtype:
+    # DTYPE=float16|bfloat16|fp16|bf16 — если bf16 даёт mismatch, поставь float16 в .env
+    raw = os.getenv("DTYPE", "bfloat16").strip().lower()
+    if raw in {"float16", "fp16", "half"}:
+        return torch.float16
+    if raw in {"bfloat16", "bf16"}:
+        if torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+        _log("bf16 not supported on this GPU, falling back to float16")
+        return torch.float16
+    raise ValueError(f"Unknown DTYPE={raw!r}, use bfloat16 or float16")
+
+
 def _vram() -> str:
     if not torch.cuda.is_available():
         return "n/a"
@@ -51,16 +64,29 @@ def _vram() -> str:
     return f"{used:.1f}/{reserved:.1f}/{total:.1f} GB (alloc/reserved/total)"
 
 
+def _cast_pipe(pipe, device: str, dtype: torch.dtype):
+    """device + dtype вместе — иначе часть модулей остаётся float32."""
+    pipe = pipe.to(device=device, dtype=dtype)
+    # на всякий случай дожимаем nn.Module-компоненты
+    for name in ("transformer", "vae", "text_encoder", "text_encoder_2"):
+        mod = getattr(pipe, name, None)
+        if mod is not None and hasattr(mod, "to"):
+            try:
+                setattr(pipe, name, mod.to(device=device, dtype=dtype))
+            except Exception as exc:  # noqa: BLE001
+                _log(f"     skip cast {name}: {exc}")
+    return pipe
+
+
 def load_pipe(model: str, *, offload: bool = False, attention_slicing: bool = False):
     setup_cuda()
-    dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    dtype = _pick_dtype()
     path = Path(model)
     local_only = path.is_dir()
     if local_only and not (path / "model_index.json").exists():
         raise FileNotFoundError(f"No model_index.json in {path}")
 
     if local_only:
-        # не ходить в сеть за токенайзерами — иначе может «висеть»
         os.environ.setdefault("HF_HUB_OFFLINE", "1")
         os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
@@ -83,17 +109,20 @@ def load_pipe(model: str, *, offload: bool = False, attention_slicing: bool = Fa
 
     if offload:
         _log("[3/4] enable_model_cpu_offload…")
+        # offload сам двигает модули; dtype уже задан через from_pretrained
         pipe.enable_model_cpu_offload(device="cuda")
     else:
-        _log("[3/4] moving all modules to CUDA (может долго молчать)…")
+        _log("[3/4] .to(cuda, dtype) — важно для bf16/fp16…")
         t1 = time.perf_counter()
-        pipe = pipe.to("cuda")
+        pipe = _cast_pipe(pipe, "cuda", dtype)
         torch.cuda.synchronize()
-        _log(f"     .to(cuda) done in {time.perf_counter() - t1:.1f}s  vram={_vram()}")
+        _log(f"     cast done in {time.perf_counter() - t1:.1f}s  vram={_vram()}")
+
+    pipe._kandinsky_dtype = dtype  # type: ignore[attr-defined]
 
     warmup = os.getenv("WARMUP", "1").strip() not in {"0", "false", "False"}
     if warmup and not offload:
-        _log("[4/4] warmup generate (первый прогон всегда самый долгий)…")
+        _log("[4/4] warmup generate…")
         t2 = time.perf_counter()
         with torch.inference_mode():
             _ = pipe(
