@@ -1,88 +1,55 @@
-# Kandinsky 5.0 Image Lite (local)
+# Kandinsky 5.0 T2I — FastAPI (Windows + CUDA)
 
-Локальная генерация картинок через Diffusers:  
-`kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers`
+`POST /generate` — промпт → PNG. Модель: `models/t2i-lite`. Только NVIDIA CUDA.
 
-## Требования
+## Установка
 
-- Python **3.11+**
-- [uv](https://docs.astral.sh/uv/)
-- Mac (MPS) / Windows+NVIDIA (CUDA) / CPU
-
-## Установка uv
-
-**macOS / Linux:**
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-**Windows (PowerShell):**
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-Проверка:
-
-```bash
-uv --version
-```
-
-## Окружение и зависимости
-
-```bash
-git clone https://github.com/Iilyx/simple_project.git
-cd simple_project
-
+```bat
 uv venv --python 3.11
-```
-
-Активация:
-
-```bash
-# macOS / Linux
-source .venv/bin/activate
-
-# Windows
 .venv\Scripts\activate
-```
-
-Установка пакетов:
-
-```bash
 uv pip install -r requirements.txt
 ```
 
-## Скачать модель
-
-```bash
-huggingface-cli download kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers \
-  --local-dir ./models/t2i-lite
+```bat
+huggingface-cli download kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers --local-dir .\models\t2i-lite
 ```
+
+Проверка GPU:
+
+```bat
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+Нужно: `2.7.x+cu124` и `True`.
 
 ## Запуск
 
-```bash
-python generate.py --model ./models/t2i-lite -p "кот в красной шапке"
+```bat
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Картинка сохранится в `outputs/`.
+4060 16GB: по умолчанию без offload. Если OOM:
 
-### Полезные флаги
-
-```bash
-# Mac ~24 ГБ RAM — меньше разрешение
-python generate.py --model ./models/t2i-lite -p "..." --width 512 --height 512
-
-# Windows + NVIDIA с запасом VRAM
-python generate.py --model ./models/t2i-lite -p "..." --device cuda --width 1024 --height 1024 --no-offload
+```bat
+set OFFLOAD=1
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-| Флаг | По умолчанию | Зачем |
-|------|--------------|--------|
-| `--device` | `auto` | `mps` / `cuda` / `cpu` |
-| `--offload` | включён | экономия памяти (на Mac почти всегда нужен) |
-| `--width` / `--height` | `768` | на слабой машине ставь `512` |
-| `--steps` | `50` | качество / скорость |
-| `--seed` | `42` | воспроизводимость |
+## API
+
+```bat
+curl -X POST http://127.0.0.1:8000/generate -H "Content-Type: application/json" -d "{\"prompt\":\"кот в красной шапке\"}" --output out.png
+```
+
+```json
+{
+  "prompt": "кот в красной шапке",
+  "width": 768,
+  "height": 768,
+  "steps": 28,
+  "guidance": 3.5,
+  "seed": 42
+}
+```
+
+`GET /health` — CUDA / имя GPU.
