@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+.python-version
+models/
+outputs/
+*.png
+*.jpg
+*.jpeg
+*.webp
+.cache/
+*.safetensors
+*.bin
+*.pt
+*.pth
+.huggingface/
