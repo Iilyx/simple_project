@@ -27,9 +27,10 @@ python generate.py --interactive --width 640 --height 1408 --steps 16
 ## Вариант 2 — FastAPI (веса 1 раз, HTTP)
 
 ```bat
-set OFFLOAD=0
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
+
+Offload **выключен по умолчанию**. Включать только при OOM: `set OFFLOAD=1`.
 
 ```bat
 curl -X POST http://127.0.0.1:8000/generate -H "Content-Type: application/json" -d "{\"prompt\":\"кот в красной шапке\",\"width\":640,\"height\":1408,\"steps\":16}" --output out.png
