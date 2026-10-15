@@ -4,6 +4,8 @@
 
 **Держи процесс живым:** interactive CLI или FastAPI.
 
+Настройки жёстко в `.env` (`OFFLOAD=0` и т.д.).
+
 ## Установка
 
 ```bat
@@ -30,7 +32,7 @@ python generate.py --interactive --width 640 --height 1408 --steps 16
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Offload **выключен по умолчанию**. Включать только при OOM: `set OFFLOAD=1`.
+Offload берётся из `.env` → `OFFLOAD=0`. При OOM поменяй там на `1`.
 
 ```bat
 curl -X POST http://127.0.0.1:8000/generate -H "Content-Type: application/json" -d "{\"prompt\":\"кот в красной шапке\",\"width\":640,\"height\":1408,\"steps\":16}" --output out.png

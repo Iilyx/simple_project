@@ -3,26 +3,17 @@
 from __future__ import annotations
 
 import io
-import os
 import threading
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import torch
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from pipeline_utils import (
-    SUPPORTED_SIZES,
-    default_model_path,
-    load_pipe,
-    run_pipe,
-)
-
-MODEL_PATH = Path(os.getenv("MODEL_PATH", default_model_path()))
-OFFLOAD = os.getenv("OFFLOAD", "0") == "1"
+import env_settings as settings
+from pipeline_utils import SUPPORTED_SIZES, load_pipe, run_pipe
 
 _pipe = None
 _lock = threading.Lock()
@@ -31,7 +22,16 @@ _lock = threading.Lock()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     global _pipe
-    _pipe = load_pipe(str(MODEL_PATH), offload=OFFLOAD, attention_slicing=False)
+    print(
+        f".env: OFFLOAD={int(settings.OFFLOAD)} "
+        f"ATTENTION_SLICING={int(settings.ATTENTION_SLICING)} "
+        f"MODEL_PATH={settings.MODEL_PATH}"
+    )
+    _pipe = load_pipe(
+        settings.MODEL_PATH,
+        offload=settings.OFFLOAD,
+        attention_slicing=settings.ATTENTION_SLICING,
+    )
     yield
 
 
@@ -41,11 +41,11 @@ app = FastAPI(title="Kandinsky T2I", lifespan=lifespan)
 class GenerateRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     negative_prompt: str = ""
-    width: int = 640
-    height: int = 1408
-    steps: int = Field(16, ge=1, le=100)
-    guidance: float = 3.5
-    seed: int = 42
+    width: int = settings.WIDTH
+    height: int = settings.HEIGHT
+    steps: int = Field(settings.STEPS, ge=1, le=100)
+    guidance: float = settings.GUIDANCE
+    seed: int = settings.SEED
 
 
 @app.get("/health")
@@ -53,8 +53,9 @@ def health():
     return {
         "ok": _pipe is not None,
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
-        "offload": OFFLOAD,
-        "model": str(MODEL_PATH),
+        "offload": settings.OFFLOAD,
+        "attention_slicing": settings.ATTENTION_SLICING,
+        "model": settings.MODEL_PATH,
         "sizes": [f"{w}x{h}" for w, h in SUPPORTED_SIZES],
     }
 

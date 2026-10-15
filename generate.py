@@ -9,35 +9,36 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from pipeline_utils import (
-    SUPPORTED_SIZES,
-    default_model_path,
-    load_pipe,
-    run_pipe,
-)
+import env_settings as settings
+from pipeline_utils import SUPPORTED_SIZES, load_pipe, run_pipe
 
 
 def build_parser() -> argparse.ArgumentParser:
     sizes = ", ".join(f"{w}x{h}" for w, h in SUPPORTED_SIZES)
     p = argparse.ArgumentParser(
-        description="Kandinsky 5.0 T2I Lite (CUDA). Use --interactive to avoid reloading weights.",
+        description="Kandinsky 5.0 T2I Lite (CUDA). Defaults from .env",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         epilog=f"Supported sizes: {sizes}",
     )
     p.add_argument("-p", "--prompt", default=None, help="Required unless --interactive")
     p.add_argument("-n", "--negative-prompt", default="")
-    p.add_argument("--model", default=default_model_path())
-    p.add_argument("--width", type=int, default=640)
-    p.add_argument("--height", type=int, default=1408)
-    p.add_argument("--steps", type=int, default=16)
-    p.add_argument("--guidance", type=float, default=3.5)
-    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--model", default=settings.MODEL_PATH)
+    p.add_argument("--width", type=int, default=settings.WIDTH)
+    p.add_argument("--height", type=int, default=settings.HEIGHT)
+    p.add_argument("--steps", type=int, default=settings.STEPS)
+    p.add_argument("--guidance", type=float, default=settings.GUIDANCE)
+    p.add_argument("--seed", type=int, default=settings.SEED)
     p.add_argument("--out", type=Path, default=None)
-    p.add_argument("--offload", action=argparse.BooleanOptionalAction, default=False)
+    p.add_argument(
+        "--offload",
+        action=argparse.BooleanOptionalAction,
+        default=settings.OFFLOAD,
+        help="From .env OFFLOAD (default 0). Only for OOM",
+    )
     p.add_argument(
         "--attention-slicing",
         action=argparse.BooleanOptionalAction,
-        default=False,
+        default=settings.ATTENTION_SLICING,
     )
     p.add_argument(
         "--interactive",
@@ -66,6 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.interactive and not args.prompt:
         print("Need -p/--prompt or --interactive", file=sys.stderr)
         return 1
+
+    print(f".env: OFFLOAD={int(args.offload)} MODEL_PATH={args.model}")
 
     try:
         pipe = load_pipe(
@@ -126,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
 
     path = save_image(image, args.out)
     print(f"saved: {path.resolve()} ({time.perf_counter() - t0:.1f}s)")
-    print("tip: next time use --interactive or `uvicorn main:app` so weights stay in VRAM")
+    print("tip: use --interactive or uvicorn main:app so weights stay in VRAM")
     return 0
 
 
