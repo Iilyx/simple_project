@@ -45,12 +45,7 @@ def load_pipeline(offload: bool) -> Flux2KleinPipeline:
     if not (MODEL_DIR / "model_index.json").is_file():
         raise SystemExit(f"Model is missing in {MODEL_DIR}. Download it with the commands in the README.")
     if not torch.cuda.is_available():
-        raise SystemExit(
-            f"CUDA is not available. Installed torch is {torch.__version__}. "
-            "A GPU build contains +cu128 or +cu126. "
-            "Reinstall torch from https://download.pytorch.org/whl/cu128 "
-            "and check nvidia-smi."
-        )
+        raise SystemExit("CUDA is not available. This script expects an NVIDIA GPU.")
 
     pipe = Flux2KleinPipeline.from_pretrained(
         MODEL_DIR,
