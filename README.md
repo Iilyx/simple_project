@@ -5,13 +5,13 @@
 ## Windows
 
 ```bat
-uv venv --python 3.12 && uv pip install --system-certs -r requirements.txt
+uv venv --python 3.12 && uv pip install --system-certs --reinstall-package torch -r requirements.txt
 .venv\Scripts\python generate.py "A cat holding a sign that says hello world"
 ```
 
 ## Linux
 
 ```bash
-uv venv --python 3.12 && uv pip install --system-certs -r requirements.txt
+uv venv --python 3.12 && uv pip install --system-certs --reinstall-package torch -r requirements.txt
 .venv/bin/python generate.py "A cat holding a sign that says hello world"
 ```
