@@ -82,7 +82,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, openapi_version="3.0.2")
 
 
 @app.post("/generate")
