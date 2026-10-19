@@ -1,13 +1,20 @@
+import argparse
+from pathlib import Path
+
 import torch
 from diffusers import Flux2KleinPipeline
 
+parser = argparse.ArgumentParser()
+parser.add_argument("prompt")
+prompt = parser.parse_args().prompt
+
 device = "cuda"
 dtype = torch.bfloat16
+model_dir = Path(__file__).resolve().parent / "models" / "FLUX.2-klein-4B"
 
-pipe = Flux2KleinPipeline.from_pretrained("black-forest-labs/FLUX.2-klein-4B", torch_dtype=dtype)
+pipe = Flux2KleinPipeline.from_pretrained(model_dir, torch_dtype=dtype, local_files_only=True)
 pipe.enable_model_cpu_offload()  # save some VRAM by offloading the model to CPU
 
-prompt = "A cat holding a sign that says hello world"
 image = pipe(
     prompt=prompt,
     height=1024,
