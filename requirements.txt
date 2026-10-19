@@ -1,7 +1,7 @@
 --index-url https://download.pytorch.org/whl/cu132
 --extra-index-url https://pypi.org/simple
 
-torch==2.14.1+cu132
+torch
 torchvision
 accelerate>=0.17.0
 diffusers
