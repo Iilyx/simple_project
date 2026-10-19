@@ -12,7 +12,7 @@ device = "cuda"
 dtype = torch.bfloat16
 model_dir = Path(__file__).resolve().parent / "models" / "FLUX.2-klein-4B"
 
-pipe = Flux2KleinPipeline.from_pretrained(model_dir, torch_dtype=dtype, local_files_only=True)
+pipe = Flux2KleinPipeline.from_pretrained(model_dir, dtype=dtype, local_files_only=True)
 pipe.enable_model_cpu_offload()  # save some VRAM by offloading the model to CPU
 
 image = pipe(
