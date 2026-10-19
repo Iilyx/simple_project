@@ -7,6 +7,7 @@ from pathlib import Path
 import torch
 from diffusers import Flux2KleinPipeline
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import Response
 from PIL import Image
 from pydantic import BaseModel, Field
@@ -82,7 +83,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan, openapi_version="3.0.2")
+app = FastAPI(lifespan=lifespan)
 
 
 @app.post("/generate")
@@ -133,3 +134,29 @@ async def edit(
         seed=seed,
         image_format=image_format,
     )
+
+
+def custom_openapi() -> dict:
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+    schema["openapi"] = "3.0.2"
+    schema.pop("jsonSchemaDialect", None)
+
+    def mark_files(node: object) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "string" and "contentMediaType" in node:
+                node.pop("contentMediaType")
+                node["format"] = "binary"
+            for value in node.values():
+                mark_files(value)
+        elif isinstance(node, list):
+            for item in node:
+                mark_files(item)
+
+    mark_files(schema)
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = custom_openapi
