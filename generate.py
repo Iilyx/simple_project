@@ -8,11 +8,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("prompt")
 prompt = parser.parse_args().prompt
 
-if not torch.cuda.is_available():
-    raise SystemExit(
-        f"PyTorch {torch.__version__} does not see an NVIDIA GPU. Reinstall torch from requirements.txt."
-    )
-
 device = "cuda"
 dtype = torch.bfloat16
 model_dir = Path(__file__).resolve().parent / "models" / "FLUX.2-klein-4B"
