@@ -17,3 +17,14 @@ uv venv --python 3.12 && uv pip install --system-certs -r requirements.txt
 uv venv --python 3.12 && uv pip install --system-certs -r requirements.txt
 .venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8000
 ```
+
+## Docker
+
+Веса в образ не копируются. На машине нужен [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+
+```bash
+docker build -t flux-klein .
+docker run --gpus all -p 8000:8000 -v "$PWD/models:/app/models" flux-klein
+```
+
+На Windows вместо `"$PWD/models"` укажи `%cd%\models`.
