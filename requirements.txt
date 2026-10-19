@@ -1,8 +1,9 @@
---index-url https://download.pytorch.org/whl/cu130
+--index-url https://download.pytorch.org/whl/cu132
 --extra-index-url https://pypi.org/simple
 
+torch==2.14.1+cu132
+torchvision
 accelerate>=0.17.0
 diffusers
-huggingface-hub>=0.30.0
-torch==2.14.1+cu130
 transformers>=4.51.0
+huggingface-hub>=0.30.0
