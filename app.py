@@ -1,6 +1,7 @@
 import asyncio
 import io
 import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -32,14 +33,33 @@ class GenerateRequest(BaseModel):
 def load_pipeline() -> Flux2KleinPipeline:
     if not (MODEL_DIR / "model_index.json").is_file():
         raise RuntimeError(f"Weights are missing in {MODEL_DIR}")
+    if not torch.cuda.is_available():
+        raise RuntimeError(f"GPU is not visible, torch {torch.__version__}")
+    props = torch.cuda.get_device_properties(0)
+    dtype = torch.bfloat16 if props.major >= 8 else torch.float16
+    logger.info(
+        "GPU %s, %.1f GB, capability %s.%s, dtype %s, torch %s",
+        props.name,
+        props.total_memory / 1024**3,
+        props.major,
+        props.minor,
+        dtype,
+        torch.__version__,
+    )
     logger.info("Loading weights from %s", MODEL_DIR)
     loaded = Flux2KleinPipeline.from_pretrained(
         MODEL_DIR,
-        dtype=torch.bfloat16,
+        dtype=dtype,
         local_files_only=True,
     )
-    loaded.enable_model_cpu_offload()
-    logger.info("Weights are ready, waiting for requests")
+    try:
+        loaded.to("cuda")
+    except torch.OutOfMemoryError:
+        logger.info("Not enough GPU memory, enabling CPU offload")
+        loaded.to("cpu")
+        torch.cuda.empty_cache()
+        loaded.enable_model_cpu_offload()
+    logger.info("Weights are ready on %s", next(loaded.transformer.parameters()).device)
     return loaded
 
 
@@ -64,7 +84,9 @@ def render(
         kwargs["image"] = image
     if seed is not None:
         kwargs["generator"] = torch.Generator(device="cpu").manual_seed(seed)
+    started = time.perf_counter()
     result = pipe(**kwargs).images[0]
+    logger.info("Rendered in %.1f s", time.perf_counter() - started)
     buffer = io.BytesIO()
     result.save(buffer, format=image_format)
     return buffer.getvalue(), MEDIA_TYPES[image_format]
