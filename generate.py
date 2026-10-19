@@ -8,7 +8,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("prompt")
 prompt = parser.parse_args().prompt
 
-device = "cuda"
 dtype = torch.bfloat16
 model_dir = Path(__file__).resolve().parent / "models" / "FLUX.2-klein-4B"
 
@@ -21,6 +20,5 @@ image = pipe(
     width=1024,
     guidance_scale=1.0,
     num_inference_steps=4,
-    generator=torch.Generator(device=device).manual_seed(0),
 ).images[0]
 image.save("flux-klein.png")
