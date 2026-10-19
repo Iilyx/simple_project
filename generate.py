@@ -1,7 +1,6 @@
 """Generate or edit an image with the local FLUX.2 [klein] 4B weights.
 
-The model must already be on disk (run setup.py first). Inference does not
-contact Hugging Face.
+The model must already be on disk. Inference does not contact Hugging Face.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ def parse_args() -> argparse.Namespace:
 
 def load_pipeline(offload: bool) -> Flux2KleinPipeline:
     if not (MODEL_DIR / "model_index.json").is_file():
-        raise SystemExit(f"Model is missing in {MODEL_DIR}. Run setup.py on this machine first.")
+        raise SystemExit(f"Model is missing in {MODEL_DIR}. Download it with the commands in the README.")
     if not torch.cuda.is_available():
         raise SystemExit("CUDA is not available. This script expects an NVIDIA GPU.")
 
