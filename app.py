@@ -12,6 +12,7 @@ from PIL import Image
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("uvicorn.error")
+MEDIA_TYPES = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
 
 MODEL_DIR = Path(__file__).resolve().parent / "models" / "FLUX.2-klein-4B"
 pipe: Flux2KleinPipeline | None = None
@@ -49,7 +50,8 @@ def render(
     steps: int,
     guidance: float,
     seed: int | None,
-) -> bytes:
+    image_format: str,
+) -> tuple[bytes, str]:
     kwargs = {
         "prompt": prompt,
         "height": height,
@@ -63,14 +65,14 @@ def render(
         kwargs["generator"] = torch.Generator(device="cpu").manual_seed(seed)
     result = pipe(**kwargs).images[0]
     buffer = io.BytesIO()
-    result.save(buffer, format="PNG")
-    return buffer.getvalue()
+    result.save(buffer, format=image_format)
+    return buffer.getvalue(), MEDIA_TYPES[image_format]
 
 
 async def draw(**kwargs) -> Response:
     async with busy:
-        png = await asyncio.to_thread(render, **kwargs)
-    return Response(content=png, media_type="image/png")
+        payload, media_type = await asyncio.to_thread(render, **kwargs)
+    return Response(content=payload, media_type=media_type)
 
 
 @asynccontextmanager
@@ -94,6 +96,7 @@ async def generate(body: GenerateRequest) -> Response:
         steps=body.steps,
         guidance=body.guidance,
         seed=body.seed,
+        image_format="PNG",
     )
 
 
@@ -109,9 +112,14 @@ async def edit(
 ) -> Response:
     logger.info("Edit: %s", prompt)
     opened: list[Image.Image] = []
+    image_format = "PNG"
     for upload in image:
         try:
-            opened.append(Image.open(io.BytesIO(await upload.read())).convert("RGB"))
+            source_image = Image.open(upload.file)
+            image_format = image_format if opened else (source_image.format or "PNG")
+            if image_format not in MEDIA_TYPES:
+                image_format = "PNG"
+            opened.append(source_image.convert("RGB"))
         except Exception as error:
             raise HTTPException(status_code=400, detail=f"Cannot read {upload.filename}") from error
     source: Image.Image | list[Image.Image] = opened[0] if len(opened) == 1 else opened
@@ -123,4 +131,5 @@ async def edit(
         steps=steps,
         guidance=guidance,
         seed=seed,
+        image_format=image_format,
     )
