@@ -2,7 +2,7 @@
 --extra-index-url https://pypi.org/simple
 
 accelerate>=1.6.0
-diffusers @ git+https://github.com/huggingface/diffusers.git
+diffusers
 huggingface-hub>=0.30.0
 pillow>=10.4.0
 protobuf>=5.29.0
